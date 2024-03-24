@@ -42,7 +42,7 @@ func main() {
 	app := fiber.New()
 
 	// Connexion à la base de données MongoDB
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb+srv://alexandrebachaba:alex17MB@kedubak.2nmq2ix.mongodb.net/"))
 	if err != nil {
 		log.Fatal(err)
 	}
