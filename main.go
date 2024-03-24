@@ -11,7 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// User représente le schéma d'un utilisateur
 type User struct {
 	ID          string    `json:"id" bson:"_id,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -22,7 +21,6 @@ type User struct {
 	LastUpVote  time.Time `json:"lastUpVote"`
 }
 
-// Post représente le schéma d'une publication
 type Post struct {
 	CreatedAt time.Time `json:"createdAt"`
 	UserID    string    `json:"userId"`
@@ -33,7 +31,6 @@ type Post struct {
 	UpVotes   []string  `json:"upVotes"`
 }
 
-// Comment représente le schéma d'un commentaire
 type Comment struct {
 	CreatedAt time.Time `json:"createdAt"`
 	ID        string    `json:"id"`
@@ -72,7 +69,7 @@ func main() {
 	app.Post("/comment", createComment)
 
 	// Démarrage du serveur
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(":8080"))
 }
 
 func register(c *fiber.Ctx) error {
