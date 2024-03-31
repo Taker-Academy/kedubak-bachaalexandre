@@ -18,11 +18,6 @@ func RegisterUserHandler(c *fiber.Ctx) error {
 			"error": "Impossible de décoder les données de la requête",
 		})
 	}
-	if newUser.Email == "" || newUser.Password == "" || newUser.FirstName == "" || newUser.LastName == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Les champs email, password, firstName et lastName sont obligatoires",
-		})
-	}
 	newUser.CreatedAt = time.Now()
 	hashedPassword, err := encoding.HashPassword(newUser.Password)
 	if err != nil {
@@ -65,11 +60,6 @@ func LoginUserHandler(c *fiber.Ctx) error {
 	if err := c.BodyParser(&credentials); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Impossible de décoder les données de la requête",
-		})
-	}
-	if credentials.Email == "" || credentials.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Adresse e-mail et mot de passe requis",
 		})
 	}
 	user, err := database.GetUserByEmail(database.GetDB(), credentials.Email)
