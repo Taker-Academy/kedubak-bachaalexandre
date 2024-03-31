@@ -1,43 +1,42 @@
 package database
 
 import (
-	"context"
-	"fmt"
+    "fmt"
+    "context"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 
-	"MyApi/models"
+    "MyApi/models"
 )
 
-func ConnectDb() (*mongo.Client, error) {
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI("mongodb+srv://alexandre:dbPassword@kedubak.kte5jfc.mongodb.net/?retryWrites=true&w=majority&appName=kedubak").SetServerAPIOptions(serverAPI)
+var db *mongo.Database
 
-	client, err := mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		return nil, err
-	}
+func ConnectDb() (*mongo.Database, error) {
+    serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+    opts := options.Client().ApplyURI("mongodb+srv://alexandre:dbPassword@kedubak.kte5jfc.mongodb.net/?retryWrites=true&w=majority&appName=kedubak").SetServerAPIOptions(serverAPI)
+    client, err := mongo.Connect(context.TODO(), opts)
+    if err != nil {
+        return nil, err
+    }
+    err = client.Ping(context.TODO(), nil)
+    if err != nil {
+        client.Disconnect(context.TODO())
+        return nil, err
+    }
+    db = client.Database("kedubak")
+    initCollections()
+    fmt.Println("Connexion réussie à MongoDB et collections créées avec succès!")
+    return db, nil
+}
 
-	err = client.Ping(context.TODO(), nil)
-	if err != nil {
-		client.Disconnect(context.TODO())
-		return nil, err
-	}
+func initCollections() {
+    userCollection := db.Collection("User")
+    userCollection.InsertOne(context.TODO(), models.User{})
+    postCollection := db.Collection("Post")
+    postCollection.InsertOne(context.TODO(), models.Post{})
+}
 
-	userCollection := client.Database("kedubak").Collection("User")
-	if _, err := userCollection.InsertOne(context.TODO(), models.User{}); err != nil {
-		client.Disconnect(context.TODO())
-		return nil, err
-	}
-
-	postCollection := client.Database("kedubak").Collection("Post")
-	if _, err := postCollection.InsertOne(context.TODO(), models.Post{}); err != nil {
-		client.Disconnect(context.TODO())
-		return nil, err
-	}
-
-	fmt.Println("Connexion réussie à MongoDB et collections créées avec succès!")
-
-	return client, nil
+func GetDB() *mongo.Database {
+    return db
 }

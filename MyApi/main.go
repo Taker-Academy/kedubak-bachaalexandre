@@ -13,6 +13,7 @@ import (
 
 func setupRoutes(app *fiber.App) {
 	app.Post("/auth/register", routes.RegisterUserHandler)
+	app.Post("/auth/login", routes.LoginUserHandler)
 	//app.Use(encoding.Authenticate)
 }
 

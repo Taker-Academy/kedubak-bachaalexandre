@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type CustomClaims struct {
@@ -26,4 +27,13 @@ func VerifyJWT(tokenString string) (*CustomClaims, error) {
 		return nil, jwt.ValidationError{Inner: err, Errors: jwt.ValidationErrorExpired}
 	}
 	return claims, nil
+}
+
+func VerifyPassword(password, hashedPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if err == nil {
+		return true
+	} else {
+		return false
+	}
 }
