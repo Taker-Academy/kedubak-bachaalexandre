@@ -5,11 +5,11 @@ import (
 )
 
 type User struct {
-	ID          string    `json:"id" bson:"_id,omitempty"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Email       string    `json:"email"`
-	FirstName   string    `json:"firstName"`
-	LastName    string    `json:"lastName"`
-	Password    string    `json:"password"`
-	LastUpVote  time.Time `json:"lastUpVote"`
+	ID          string    `json:"_id" bson:"_id,omitempty"`
+	CreatedAt   time.Time `json:"createdAt" bson:"createdAt"`
+	Email       string    `json:"email" bson:"email"`
+	FirstName   string    `json:"firstName" bson:"firstName"`
+	LastName    string    `json:"lastName" bson:"lastName"`
+	Password    string    `json:"password" bson:"password"`
+	LastUpVote  time.Time `json:"lastUpVote" bson:"lastUpVote"`
 }
