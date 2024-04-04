@@ -1,94 +1,110 @@
 package routes
 
 import (
-	"time"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 
-	"MyApi/encoding"
 	"MyApi/database"
+	"MyApi/encoding"
 	"MyApi/models"
 )
 
-func RegisterUserHandler(c *fiber.Ctx) error {
-	var newUser models.User
-
-	if err := c.BodyParser(&newUser); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Impossible de décoder les données de la requête",
-		})
-	}
-	newUser.CreatedAt = time.Now()
-	hashedPassword, err := encoding.HashPassword(newUser.Password)
+func GetUserInfoHandler(c *fiber.Ctx) error {
+	claims := c.Locals("user").(*encoding.CustomClaims)
+	userID := claims.UserID
+	fmt.Println("UserId:", userID)
+	user, err := database.GetUserByID(database.GetDB(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Erreur lors du chiffrement du mot de passe",
+			"ok":      false,
+			"message": "Erreur lors de la récupération des informations de l'utilisateur",
 		})
 	}
-	newUser.Password = hashedPassword
-	if err := database.SaveUser(newUser, "User"); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Erreur lors de l'enregistrement de l'utilisateur dans la base de données",
-		})
-	}
-	token, err := encoding.GenerateJWT(newUser.ID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Erreur lors de la génération du token JWT",
-		})
-	}
-	response := fiber.Map{
+	return c.JSON(fiber.Map{
 		"ok": true,
 		"data": fiber.Map{
-			"token": token,
-			"user": fiber.Map{
-				"email":     newUser.Email,
-				"firstName": newUser.FirstName,
-				"lastName":  newUser.LastName,
-			},
+			"email":     user.Email,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
 		},
-	}
-	return c.Status(fiber.StatusCreated).JSON(response)
+	})
 }
 
-func LoginUserHandler(c *fiber.Ctx) error {
-	var credentials struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	if err := c.BodyParser(&credentials); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Impossible de décoder les données de la requête",
-		})
-	}
-	user, err := database.GetUserByEmail(database.GetDB(), credentials.Email)
+func EditUserInfoHandler(c *fiber.Ctx) error {
+	claims := c.Locals("user").(*encoding.CustomClaims)
+	userID := claims.UserID
+	user, err := database.GetUserByID(database.GetDB(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Erreur lors de la récupération de l'utilisateur depuis la base de données",
+			"error": "Erreur interne du serveur",
 		})
 	}
-	if user == nil || !encoding.VerifyPassword(credentials.Password, user.Password) {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Mauvaises identifiants",
+	var editData models.User
+	if err := c.BodyParser(&editData); err != nil {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": "Échec de la validation des paramètres",
 		})
 	}
-	token, err := encoding.GenerateJWT(user.ID)
-	if err != nil {
+	if editData.FirstName != "" {
+		user.FirstName = editData.FirstName
+	}
+	if editData.LastName != "" {
+		user.LastName = editData.LastName
+	}
+	if editData.Email != "" {
+		user.Email = editData.Email
+	}
+	if editData.Password != "" {
+		hashedPassword, err := encoding.HashPassword(editData.Password)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Erreur interne du serveur",
+			})
+		}
+		user.Password = hashedPassword
+	}
+	if err := database.UpdateUser(user.ID, user); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Erreur lors de la génération du token JWT",
+			"error": "Erreur interne du serveur",
 		})
 	}
 	response := fiber.Map{
 		"ok": true,
 		"data": fiber.Map{
-			"token": token,
-			"user": fiber.Map{
-				"email":     user.Email,
-				"firstName": user.FirstName,
-				"lastName":  user.LastName,
-			},
+			"email":     user.Email,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
 		},
 	}
-	return c.Status(fiber.StatusOK).JSON(response)
+	return c.JSON(response)
+}
+
+func RemoveUserHandler(c *fiber.Ctx) error {
+	claims := c.Locals("user").(*encoding.CustomClaims)
+	userID := claims.UserID
+	user, err := database.GetUserByID(database.GetDB(), userID)
+	if err != nil {
+        fmt.Println("Erreur lors de la recherche de l'utilisateur:", err)
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Utilisateur non trouvé",
+        })
+    }
+	err = database.RemoveUser(database.GetDB(), userID)
+    if err != nil {
+        fmt.Println("Erreur lors de la suppression de l'utilisateur:", err)
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "error": "Erreur interne du serveur",
+        })
+    }
+	response := fiber.Map{
+		"ok": true,
+		"data": fiber.Map{
+			"email":     user.Email,
+			"firstName": user.FirstName,
+			"lastName":  user.LastName,
+			"removed":   true,
+		},
+	}
+	return c.JSON(response)
 }
