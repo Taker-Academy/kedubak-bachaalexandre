@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,14 +11,15 @@ func Authenticate(c *fiber.Ctx) error {
 	tokenParts := strings.Split(authorizationHeader, " ")
 	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"ok": false,
 			"error": "Format de token JWT invalide",
 		})
 	}
 	token := tokenParts[1]
-	fmt.Println("Token JWT:", token)
 	claims, err := VerifyJWT(token)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"ok": false,
 			"error": "mauvais token JWT",
 		})
 	}

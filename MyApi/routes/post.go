@@ -3,9 +3,12 @@ package routes
 import (
     "context"
 	"time"
+	"errors"
     "github.com/gofiber/fiber/v2"
     "go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo"
     "MyApi/models"
 	"MyApi/database"
 	"MyApi/encoding"
@@ -17,6 +20,7 @@ func GetPostsHandler(c *fiber.Ctx) error {
     cursor, err := db.Collection("Post").Find(context.Background(), bson.M{"userId": bson.M{"$ne": ""}}, opts)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur interne du serveur",
         })
     }
@@ -27,6 +31,7 @@ func GetPostsHandler(c *fiber.Ctx) error {
         var post models.Post
         if err := cursor.Decode(&post); err != nil {
             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"ok": false,
                 "error": "Erreur de décodage des posts",
             })
         }
@@ -40,6 +45,7 @@ func GetPostsHandler(c *fiber.Ctx) error {
     }
     if err := cursor.Err(); err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur de curseur lors de la récupération des posts",
         })
     }
@@ -75,6 +81,7 @@ func CreatePostHandler(c *fiber.Ctx) error {
     user, err := database.GetUserByID(database.GetDB(), userID)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur interne du serveur lors de la récupération des informations de l'utilisateur",
         })
     }
@@ -84,6 +91,7 @@ func CreatePostHandler(c *fiber.Ctx) error {
     }
     if err := c.BodyParser(&requestBody); err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
             "error": "Mauvaise requête, paramètres manquants ou invalides",
         })
     }
@@ -100,6 +108,7 @@ func CreatePostHandler(c *fiber.Ctx) error {
     _, err = db.Collection("Post").InsertOne(context.Background(), post)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur interne du serveur lors de la création du post",
         })
     }
@@ -127,6 +136,7 @@ func GetUserPostsHandler(c *fiber.Ctx) error {
     cursor, err := db.Collection("Post").Find(context.Background(), bson.M{"userId": userID}, opts)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur interne du serveur lors de la récupération des posts de l'utilisateur",
         })
     }
@@ -137,6 +147,7 @@ func GetUserPostsHandler(c *fiber.Ctx) error {
         var post models.Post
         if err := cursor.Decode(&post); err != nil {
             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"ok": false,
                 "error": "Erreur de décodage des posts de l'utilisateur",
             })
         }
@@ -150,6 +161,7 @@ func GetUserPostsHandler(c *fiber.Ctx) error {
     }
     if err := cursor.Err(); err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
             "error": "Erreur de curseur lors de la récupération des posts de l'utilisateur",
         })
     }
@@ -174,9 +186,252 @@ func GetUserPostsHandler(c *fiber.Ctx) error {
         }
         responseData = append(responseData, postData)
     }
-
     return c.JSON(fiber.Map{
         "ok":   true,
         "data": responseData,
     })
 }
+
+func GetPostDetailsHandler(c *fiber.Ctx) error {
+    postID := c.Params("id")
+    if postID == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, paramètres manquants ou invalides",
+        })
+    }
+    objID, err := primitive.ObjectIDFromHex(postID)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, ID de l'élément invalide",
+        })
+    }
+    var post models.Post
+    db := database.GetDB()
+    err = db.Collection("Post").FindOne(context.Background(), bson.M{"_id": objID}).Decode(&post)
+    if err != nil {
+        if errors.Is(err, mongo.ErrNoDocuments) {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"ok": false,
+                "error": "Élément non trouvé",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur",
+        })
+    }
+	if post.Comments == nil {
+		post.Comments = []models.Comment{}
+	}
+	if post.UpVotes == nil {
+		post.UpVotes = []string{}
+	}
+    responseData := map[string]interface{}{
+        "_id":       post.ID,
+        "createdAt": post.CreatedAt,
+        "userId":    post.UserID,
+        "firstName": post.FirstName,
+        "title":     post.Title,
+        "content":   post.Content,
+        "comments":  post.Comments,
+        "upVotes":   post.UpVotes,
+    }
+    return c.JSON(fiber.Map{
+        "ok":   true,
+        "data": responseData,
+    })
+}
+
+func DeletePostHandler(c *fiber.Ctx) error {
+    postID := c.Params("id")
+    if postID == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, paramètres manquants ou invalides",
+        })
+    }
+    objID, err := primitive.ObjectIDFromHex(postID)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, ID de l'élément invalide",
+        })
+    }
+    claims := c.Locals("user").(*encoding.CustomClaims)
+    userID := claims.UserID
+    db := database.GetDB()
+    var post models.Post
+    err = db.Collection("Post").FindOne(context.Background(), bson.M{"_id": objID}).Decode(&post)
+    if err != nil {
+        if errors.Is(err, mongo.ErrNoDocuments) {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"ok": false,
+                "error": "Élément non trouvé",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur",
+        })
+    }
+    if post.UserID != userID {
+        return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"ok": false,
+            "error": "L'utilisateur n'est pas le propriétaire de l'élément",
+        })
+    }
+    _, err = db.Collection("Post").DeleteOne(context.Background(), bson.M{"_id": objID})
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur lors de la suppression de l'élément",
+        })
+    }
+	if post.Comments == nil {
+		post.Comments = []models.Comment{}
+	}
+	if post.UpVotes == nil {
+		post.UpVotes = []string{}
+	}
+    responseData := map[string]interface{}{
+        "_id":       post.ID,
+        "createdAt": post.CreatedAt,
+        "userId":    post.UserID,
+        "firstName": post.FirstName,
+        "title":     post.Title,
+        "content":   post.Content,
+        "comments":  post.Comments,
+        "upVotes":   post.UpVotes,
+        "removed":   true,
+    }
+    return c.JSON(fiber.Map{
+        "ok":   true,
+        "data": responseData,
+    })
+}
+func VotePostHandler(c *fiber.Ctx) error {
+    postID := c.Params("id")
+    if postID == "" {
+        return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"ok": false,
+            "error": "ID invalide",
+        })
+    }
+    objID, err := primitive.ObjectIDFromHex(postID)
+    if err != nil {
+        return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"ok": false,
+            "error": "ID invalide",
+        })
+    }
+    claims := c.Locals("user").(*encoding.CustomClaims)
+    userID := claims.UserID
+    db := database.GetDB()
+    var post models.Post
+    err = db.Collection("Post").FindOne(context.Background(), bson.M{"_id": objID}).Decode(&post)
+    if err != nil {
+        if errors.Is(err, mongo.ErrNoDocuments) {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"ok": false,
+                "error": "Élément non trouvé",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur",
+        })
+    }
+    for _, v := range post.UpVotes {
+        if v == userID {
+            return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+                "error": "Vous avez déjà voté pour ce post",
+            })
+        }
+    }
+    _, err = db.Collection("Post").UpdateOne(
+        context.Background(),
+        bson.M{"_id": objID},
+        bson.M{"$push": bson.M{"upVotes": userID}},
+    )
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur lors de l'enregistrement du vote",
+        })
+    }
+    return c.JSON(fiber.Map{
+        "ok":      true,
+        "message": "post upvoted",
+    })
+}
+
+func CreateCommentHandler(c *fiber.Ctx) error {
+    postID := c.Params("id")
+    if postID == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, paramètres manquants ou invalides",
+        })
+    }
+    objID, err := primitive.ObjectIDFromHex(postID)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, ID de l'élément invalide",
+        })
+    }
+    var requestBody struct {
+        Content string `json:"content"`
+    }
+    if err := c.BodyParser(&requestBody); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, paramètres manquants ou invalides",
+        })
+    }
+    if requestBody.Content == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
+            "error": "Mauvaise requête, contenu du commentaire manquant",
+        })
+    }
+    claims := c.Locals("user").(*encoding.CustomClaims)
+    userID := claims.UserID
+    user, err := database.GetUserByID(database.GetDB(), userID)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur lors de la récupération des informations de l'utilisateur",
+        })
+    }
+    comment := models.Comment{
+        CreatedAt: time.Now(),
+        ID:        primitive.NewObjectID().Hex(),
+        FirstName: user.FirstName,
+        Content:   requestBody.Content,
+    }
+    db := database.GetDB()
+    _, err = db.Collection("Post").UpdateOne(
+        context.Background(),
+        bson.M{"_id": objID},
+        bson.M{"$push": bson.M{"comments": comment}},
+    )
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
+            "error": "Erreur interne du serveur lors de la création du commentaire",
+        })
+    }
+    responseData := map[string]interface{}{
+        "firstName": comment.FirstName,
+        "content":   comment.Content,
+        "createdAt": comment.CreatedAt,
+    }
+    return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+        "ok":   true,
+        "data": responseData,
+    })
+}
+

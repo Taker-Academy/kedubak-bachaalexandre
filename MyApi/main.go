@@ -20,6 +20,10 @@ func setupRoutes(app *fiber.App) {
 	app.Get("/post/", encoding.Authenticate, routes.GetPostsHandler)
 	app.Post("/post/", encoding.Authenticate, routes.CreatePostHandler)
 	app.Get("/post/me", encoding.Authenticate, routes.GetUserPostsHandler)
+	app.Get("/post/:id", encoding.Authenticate, routes.GetPostDetailsHandler)
+	app.Delete("/post/:id", encoding.Authenticate, routes.DeletePostHandler)
+	app.Post("/post/vote/:id", encoding.Authenticate, routes.VotePostHandler)
+	app.Post("/comment/:id", encoding.Authenticate, routes.CreateCommentHandler)
 }
 
 func main() {

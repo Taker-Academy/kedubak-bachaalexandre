@@ -15,6 +15,7 @@ func RegisterUserHandler(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&newUser); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
 			"error": "Impossible de décoder les données de la requête",
 		})
 	}
@@ -22,24 +23,28 @@ func RegisterUserHandler(c *fiber.Ctx) error {
 	hashedPassword, err := encoding.HashPassword(newUser.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors du chiffrement du mot de passe",
 		})
 	}
 	newUser.Password = hashedPassword
 	if err := database.SaveUser(newUser, "User"); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors de l'enregistrement de l'utilisateur dans la base de données",
 		})
 	}
 	user, err := database.GetUserByEmail(database.GetDB(), newUser.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors de la récupération de l'utilisateur depuis la base de données",
 		})
 	}
 	token, err := encoding.GenerateJWT(user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors de la génération du token JWT",
 		})
 	}
@@ -66,23 +71,27 @@ func LoginUserHandler(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&credentials); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"ok": false,
 			"error": "Impossible de décoder les données de la requête",
 		})
 	}
 	user, err := database.GetUserByEmail(database.GetDB(), credentials.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors de la récupération de l'utilisateur depuis la base de données",
 		})
 	}
 	if user == nil || !encoding.VerifyPassword(credentials.Password, user.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"ok": false,
 			"error": "Mot de passe ou identifiant incorrecte",
 		})
 	}
 	token, err := encoding.GenerateJWT(user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"ok": false,
 			"error": "Erreur lors de la génération du token JWT",
 		})
 	}

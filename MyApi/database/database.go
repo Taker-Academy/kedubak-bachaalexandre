@@ -1,7 +1,6 @@
 package database
 
 import (
-    "fmt"
     "context"
 
     "go.mongodb.org/mongo-driver/mongo"
@@ -26,7 +25,6 @@ func ConnectDb() (*mongo.Database, error) {
     }
     db = client.Database("kedubak")
     initCollections()
-    fmt.Println("Connexion réussie à MongoDB et collections créées avec succès!")
     return db, nil
 }
 

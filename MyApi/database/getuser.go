@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -32,7 +31,6 @@ func GetUserByID(db *mongo.Database, userID string) (*models.User, error) {
     if err != nil {
         return nil, err
     }
-	fmt.Println("objectID:", objectID)
     collection := db.Collection("User")
     filter := bson.M{"_id": objectID}
     err = collection.FindOne(context.Background(), filter).Decode(&user)
