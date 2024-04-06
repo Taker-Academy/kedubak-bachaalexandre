@@ -64,7 +64,7 @@ func EditUserInfoHandler(c *fiber.Ctx) error {
 		}
 		user.Password = hashedPassword
 	}
-	if err := database.UpdateUser(user.ID, user); err != nil {
+	if err := database.UpdateUser(database.GetDB(), user.ID, user); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Erreur interne du serveur",
 		})
@@ -92,7 +92,7 @@ func RemoveUserHandler(c *fiber.Ctx) error {
     }
 	err = database.RemoveUser(database.GetDB(), userID)
     if err != nil {
-        fmt.Println("Erreur lors de la suppression de l'utilisateur:", err)
+        fmt.Println("Erreur2 lors de la suppression de l'utilisateur:", err)
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "error": "Erreur interne du serveur",
         })

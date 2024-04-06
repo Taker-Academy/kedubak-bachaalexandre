@@ -2,33 +2,35 @@ package database
 
 import (
     "context"
-    "fmt"
+    "errors"
 
     "go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"MyApi/models"
+    "MyApi/models"
 )
 
-func UpdateUser(userID string, user *models.User) error {
-    collection := db.Collection("User")
-    filter := bson.M{"_id": userID}
-    update := bson.M{}
-    if user.FirstName != "" {
-        update["firstName"] = user.FirstName
-    }
-    if user.LastName != "" {
-        update["lastName"] = user.LastName
-    }
-    if user.Email != "" {
-        update["email"] = user.Email
-    }
-    if user.Password != "" {
-        update["password"] = user.Password
-    }
-    _, err := collection.UpdateOne(context.Background(), filter, bson.M{"$set": update})
+func UpdateUser(db *mongo.Database, userID string, updatedUser *models.User) error {
+    objID, err := primitive.ObjectIDFromHex(userID)
     if err != nil {
-        return fmt.Errorf("erreur lors de la mise à jour de l'utilisateur: %v", err)
+        return errors.New("ID d'utilisateur invalide")
     }
-
+    update := bson.M{
+        "$set": bson.M{
+            "email":     updatedUser.Email,
+            "firstName": updatedUser.FirstName,
+            "lastName":  updatedUser.LastName,
+            "password":  updatedUser.Password,
+        },
+    }
+    _, err = db.Collection("User").UpdateOne(
+        context.TODO(),
+        bson.M{"_id": objID},
+        update,
+    )
+    if err != nil {
+        return err
+    }
     return nil
 }
