@@ -5,13 +5,14 @@ import (
 )
 
 type Post struct {
+	ID		  string	`json:"_id" bson:"_id,omitempty"`
 	CreatedAt time.Time `json:"createdAt" bson:"createdAt"`
 	UserID    string    `json:"userId" bson:"userId"`
 	FirstName string    `json:"firstName" bson:"firstName"`
 	Title     string    `json:"title" bson:"title"`
 	Content   string    `json:"content" bson:"content"`
-	Comments  []Comment `json:"comments" bson:"comments"`
-	UpVotes   []string  `json:"upVotes" bson:"upVotes"`
+	Comments  []Comment `json:"comments,omitempty" bson:"comments,omitempty"`
+	UpVotes   []string  `json:"upVotes,omitempty" bson:"upVotes,omitempty"`
 }
 
 type Comment struct {
